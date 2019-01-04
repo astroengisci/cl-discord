@@ -158,8 +158,6 @@
 (defun connect-gateway (token)
   "Opens a gateway connection."
   (progn
-                                        ; Set callback functions
-
                                         ; Open connection
     (wsd:on :message +client+
             #'handle-messages)
