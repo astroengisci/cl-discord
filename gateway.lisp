@@ -28,7 +28,6 @@
     (sleep (/ interval 1000))
     (wsd:send +client+
               (build-payload 1 *last-s*))
-    (print "Sent heartbeat packet")
     (heartbeat interval)))
 
 (defun identify (token)
@@ -152,8 +151,8 @@
                  (heartbeat (alexandria:assoc-value
                              (key-from-json :d message)
                              :heartbeat--interval))))))
-        (11 (print "got heartbeat ACK"))
-        (otherwise (print message))))))
+        
+        ))))
 
 (defun connect-gateway (token)
   "Opens a gateway connection."
