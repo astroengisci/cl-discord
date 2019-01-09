@@ -1,10 +1,3 @@
-(ql:quickload "cl-json")
-(ql:quickload "websocket-driver-client")
-(ql:quickload "bordeaux-threads")
-(ql:quickload "alexandria")
-(ql:quickload "dexador")
-(load "./utilities.lisp")
-
 (defvar *last-s* nil)
 
 (defconstant +gateway+
@@ -12,8 +5,7 @@
                  (dex:get "http://discordapp.com/api/gateway"))
   "On loading the library, gets the current gateway URL.")
 
-(defconstant +client+
-  (wsd:make-client +gateway+))
+(defvar *client* nil)
 
 (defun default-cb (message) (print message))
 
@@ -26,12 +18,12 @@
   "Sends a heartbeat packet every _interval_ milliseconds."
   (progn
     (sleep (/ interval 1000))
-    (wsd:send +client+
+    (wsd:send *client*
               (build-payload 1 *last-s*))
     (heartbeat interval)))
 
 (defun identify (token)
-  (wsd:send +client+
+  (wsd:send *client*
             (build-payload 2
                            `((:token . ,token)
                              (:properties . ((:$os . "linux")
@@ -142,7 +134,7 @@
              ((equal ty "VOICE_STATE_UPDATE") (voice-state-update-cb message))
              ((equal ty "VOICE_SERVER_UPDATE") (voice-server-update-cb message))
              ((equal ty "WEBHOOKS_UPDATE") (webhooks-update-cb message))))
-        (1 (wsd:send +client+
+        (1 (wsd:send *client*
                      (build-payload 1 *last-s*)))
         (10 (progn
               (print "got hello packet")
@@ -157,15 +149,20 @@
 (defun connect-gateway (token)
   "Opens a gateway connection."
   (progn
-                                        ; Open connection
-    (wsd:on :message +client+
+    ; Check for an existing client, close if there is one,
+    ; produce a new client
+    (if *client* (wsd:close-connection *client*))
+    (setf *client* (wsd:make-client +gateway+))
+
+    ; Open connection
+    (wsd:on :message *client*
             #'handle-messages)
-    (wsd:on :close +client+
+    (wsd:on :close *client*
             (lambda (&key code reason)
               (format t "Closed because '~A' (Code=~A)~%" reason code)))
-    (wsd:on :error +client+
+    (wsd:on :error *client*
         (lambda (error)
           (format t "Got an error: ~S~%" error)))
-    (wsd:start-connection +client+)
+    (wsd:start-connection *client*)
     ; Identify
     (identify token)))

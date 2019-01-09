@@ -1,13 +1,8 @@
-(ql:quickload "cl-json")
-(ql:quickload "dexador")
-
-(load "utilities.lisp")
-
-(defun auth-request (path key &key (method 'get) content)
+(defun auth-request (path key &key (method 'get) (type "application/json") content)
   (dex:request (build-url path)
                :method method
                :headers `(("Authorization" . ,(concatenate 'string "Bot " key))
-                          ("Content-Type" . "application/json"))
+                          ("Content-Type" . ,type))
                :content content))
 
 (defun get-channel (channel key)
@@ -51,16 +46,21 @@
                 :method 'delete))
 
 (defun get-channel-messages (channel key &key around before after limit)
-  (let (url (concatenate 'string "channels/" channel "/messages")
-       (progn
-         ; TODO This needs to append "?" to the url if a query is provided, and correctly
-         ; insert & between them when needed
-         (if (or around after limit)
-             (progn
-               (setf url (concatenate url "?"))))
-         (auth-request url key)))))
+  (let ((url (concatenate 'string "channels/" channel "/messages"))
+        (query ()))
+    (progn
+      (if around (setf query (append query `(("around" . ,around)))))
+      (if before (setf query (append query `(("before" . ,before)))))
+      (if after (setf query (append query `(("after" . ,after)))))
+      (if limit (setf query (append query `(("limit" . ,limit)))))
+      (setf url (concatenate 'string url (build-query query)))
+      (auth-request url key))))
 
-(defun send-message (content channel key)
+(defun get-channel-message (channel key message)
+  (auth-request (concatenate 'string "channels/" channel "/messages/" message)
+                key))
+
+(defun send-message (channel key content)
   (auth-request (concatenate 'string "channels/" channel "/messages")
                 key
                 :method 'post
